@@ -45,7 +45,9 @@ const SiteSchemaJSON = `{
     },
     "corsOrigin": {
       "description": "Value for the Access-Control-Allow-Origin header returned with all requests.",
-      "type": "string"
+      "type": "string",
+      "default": "github.com",
+      "examples": ["github.com github-enterprise.example.com gitlab.com"]
     },
     "disableAutoGitUpdates": {
       "description": "Disable periodically fetching git contents for existing repositories.",
@@ -122,7 +124,16 @@ const SiteSchemaJSON = `{
           "enum": ["all-users-create", "site-admin-create", "none"],
           "default": "all-users-create"
         }
-      }
+      },
+      "default": {
+        "allow": "all-users-create"
+      },
+      "examples": [
+        {
+          "allow": "site-admin-create"
+        },
+        { "allow": "none" }
+      ]
     },
     "email.smtp": {
       "title": "SMTPServerConfig",
