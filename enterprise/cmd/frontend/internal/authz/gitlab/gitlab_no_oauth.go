@@ -28,11 +28,15 @@ type pcache interface {
 	Delete(key string)
 }
 
-// GitLabAuthzProvider is an implementation of AuthzProvider that provides repository permissions as
+// SudoProvider is an implementation of AuthzProvider that provides repository permissions as
 // determined from a GitLab instance API. For documentation of specific fields, see the docstrings
-// of GitLabAuthzProviderOp.
-type GitLabAuthzProvider struct {
-	client            *gitlab.Client
+// of SudoProviderOp.
+type SudoProvider struct {
+	// sudoToken is the sudo-scoped access token. This is different from the Sudo parameter, which
+	// is set per client and defines which user to impersonate.
+	sudoToken string
+
+	clientProvider    *gitlab.ClientProvider
 	clientURL         *url.URL
 	codeHost          *gitlab.CodeHost
 	gitlabProvider    string
@@ -42,7 +46,7 @@ type GitLabAuthzProvider struct {
 	cacheTTL          time.Duration
 }
 
-var _ authz.Provider = ((*GitLabAuthzProvider)(nil))
+var _ authz.Provider = ((*SudoProvider)(nil))
 
 type cacheVal struct {
 	// ProjIDs is the set of project IDs to which a GitLab user has access.
@@ -53,7 +57,7 @@ type cacheVal struct {
 	TTL time.Duration `json:"ttl"`
 }
 
-type GitLabAuthzProviderOp struct {
+type SudoProviderOp struct {
 	// BaseURL is the URL of the GitLab instance.
 	BaseURL *url.URL
 
@@ -83,9 +87,11 @@ type GitLabAuthzProviderOp struct {
 	MockCache pcache
 }
 
-func NewProvider(op GitLabAuthzProviderOp) *GitLabAuthzProvider {
-	p := &GitLabAuthzProvider{
-		client:            gitlab.NewClient(op.BaseURL, op.SudoToken, "", nil),
+func NewSudoProvider(op SudoProviderOp) *SudoProvider {
+	p := &SudoProvider{
+		sudoToken: op.SudoToken,
+
+		clientProvider:    gitlab.NewClientProvider(op.BaseURL, nil),
 		clientURL:         op.BaseURL,
 		codeHost:          gitlab.NewCodeHost(op.BaseURL),
 		cache:             op.MockCache,
@@ -100,10 +106,10 @@ func NewProvider(op GitLabAuthzProviderOp) *GitLabAuthzProvider {
 	return p
 }
 
-func (p *GitLabAuthzProvider) Validate() (problems []string) {
+func (p *SudoProvider) Validate() (problems []string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if _, _, err := p.client.ListProjects(ctx, "projects?sudo=1"); err != nil {
+	if _, _, err := p.clientProvider.GetPATClient(p.sudoToken, "1").ListProjects(ctx, "projects"); err != nil {
 		if err == ctx.Err() {
 			problems = append(problems, fmt.Sprintf("GitLab API did not respond within 5s (%s)", err.Error()))
 		} else if !gitlab.IsNotFound(err) {
@@ -113,19 +119,19 @@ func (p *GitLabAuthzProvider) Validate() (problems []string) {
 	return problems
 }
 
-func (p *GitLabAuthzProvider) ServiceID() string {
+func (p *SudoProvider) ServiceID() string {
 	return p.codeHost.ServiceID()
 }
 
-func (p *GitLabAuthzProvider) ServiceType() string {
+func (p *SudoProvider) ServiceType() string {
 	return p.codeHost.ServiceType()
 }
 
-func (p *GitLabAuthzProvider) Repos(ctx context.Context, repos map[authz.Repo]struct{}) (mine map[authz.Repo]struct{}, others map[authz.Repo]struct{}) {
+func (p *SudoProvider) Repos(ctx context.Context, repos map[authz.Repo]struct{}) (mine map[authz.Repo]struct{}, others map[authz.Repo]struct{}) {
 	return authz.GetCodeHostRepos(p.codeHost, repos)
 }
 
-func (p *GitLabAuthzProvider) RepoPerms(ctx context.Context, account *extsvc.ExternalAccount, repos map[authz.Repo]struct{}) (map[api.RepoName]map[authz.Perm]bool, error) {
+func (p *SudoProvider) RepoPerms(ctx context.Context, account *extsvc.ExternalAccount, repos map[authz.Repo]struct{}) (map[api.RepoName]map[authz.Perm]bool, error) {
 	accountID := "" // empty means public / unauthenticated to the code host
 	if account != nil && account.ServiceID == p.codeHost.ServiceID() && account.ServiceType == p.codeHost.ServiceType() {
 		accountID = account.AccountID
@@ -189,7 +195,7 @@ func (p *GitLabAuthzProvider) RepoPerms(ctx context.Context, account *extsvc.Ext
 		if err != nil {
 			return nil, err
 		}
-		sudo = strconv.Itoa(usr.ID)
+		sudo = strconv.Itoa(int(usr.ID))
 	}
 	for repo := range remaining {
 		projID, err := strconv.Atoi(repo.ExternalRepoSpec.ID)
@@ -239,12 +245,12 @@ func (p *GitLabAuthzProvider) RepoPerms(ctx context.Context, account *extsvc.Ext
 // - whether the repository contents are accessible to usr, and
 // - any error encountered in fetching (not including an error due to the repository not being visible);
 //   if the error is non-nil, all other return values should be disregraded
-func (p *GitLabAuthzProvider) fetchProjVis(ctx context.Context, sudo string, projID int) (
+func (p *SudoProvider) fetchProjVis(ctx context.Context, sudo string, projID int) (
 	isAccessible bool, vis gitlab.Visibility, isContentAccessible bool, err error,
 ) {
-	proj, err := p.client.GetProject(ctx, gitlab.GetProjectOp{
+	proj, err := p.clientProvider.GetPATClient(p.sudoToken, sudo).GetProject(ctx, gitlab.GetProjectOp{
 		ID:       projID,
-		CommonOp: gitlab.CommonOp{NoCache: true, Sudo: sudo},
+		CommonOp: gitlab.CommonOp{NoCache: true},
 	})
 	if err != nil {
 		if errCode := gitlab.HTTPErrorCode(err); errCode == http.StatusNotFound {
@@ -265,9 +271,9 @@ func (p *GitLabAuthzProvider) fetchProjVis(ctx context.Context, sudo string, pro
 	// If project visibility is private and its accessible to user, we still need to check if the user
 	// can read the repository contents (i.e., does not merely have "Guest" permissions).
 
-	if _, err := p.client.ListTree(ctx, gitlab.ListTreeOp{
+	if _, err := p.clientProvider.GetPATClient(p.sudoToken, sudo).ListTree(ctx, gitlab.ListTreeOp{
 		ProjID:   projID,
-		CommonOp: gitlab.CommonOp{NoCache: true, Sudo: sudo},
+		CommonOp: gitlab.CommonOp{NoCache: true},
 	}); err != nil {
 		if errCode := gitlab.HTTPErrorCode(err); errCode == http.StatusNotFound {
 			return true, proj.Visibility, false, nil
@@ -277,7 +283,7 @@ func (p *GitLabAuthzProvider) fetchProjVis(ctx context.Context, sudo string, pro
 	return true, proj.Visibility, true, nil
 }
 
-func (p *GitLabAuthzProvider) FetchAccount(ctx context.Context, user *types.User, current []*extsvc.ExternalAccount) (mine *extsvc.ExternalAccount, err error) {
+func (p *SudoProvider) FetchAccount(ctx context.Context, user *types.User, current []*extsvc.ExternalAccount) (mine *extsvc.ExternalAccount, err error) {
 	if user == nil {
 		return nil, nil
 	}
@@ -329,12 +335,12 @@ func (p *GitLabAuthzProvider) FetchAccount(ctx context.Context, user *types.User
 	return &glExternalAccount, nil
 }
 
-func (p *GitLabAuthzProvider) fetchAccountByExternalUID(ctx context.Context, uid string) (*gitlab.User, error) {
+func (p *SudoProvider) fetchAccountByExternalUID(ctx context.Context, uid string) (*gitlab.User, error) {
 	q := make(url.Values)
 	q.Add("extern_uid", uid)
 	q.Add("provider", p.gitlabProvider)
 	q.Add("per_page", "2")
-	glUsers, _, err := p.client.ListUsers(ctx, "users?"+q.Encode())
+	glUsers, _, err := p.clientProvider.GetPATClient(p.sudoToken, "").ListUsers(ctx, "users?"+q.Encode())
 	if err != nil {
 		return nil, err
 	}
@@ -347,11 +353,11 @@ func (p *GitLabAuthzProvider) fetchAccountByExternalUID(ctx context.Context, uid
 	return glUsers[0], nil
 }
 
-func (p *GitLabAuthzProvider) fetchAccountByUsername(ctx context.Context, username string) (*gitlab.User, error) {
+func (p *SudoProvider) fetchAccountByUsername(ctx context.Context, username string) (*gitlab.User, error) {
 	q := make(url.Values)
 	q.Add("username", username)
 	q.Add("per_page", "2")
-	glUsers, _, err := p.client.ListUsers(ctx, "users?"+q.Encode())
+	glUsers, _, err := p.clientProvider.GetPATClient(p.sudoToken, "").ListUsers(ctx, "users?"+q.Encode())
 	if err != nil {
 		return nil, err
 	}
