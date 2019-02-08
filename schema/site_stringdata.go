@@ -249,6 +249,51 @@ const SiteSchemaJSON = `{
     }
   },
   "definitions": {
+    "OAuthIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "oauth"
+        }
+      }
+    },
+    "UsernameIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "username"
+        }
+      }
+    },
+    "ExternalIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "authProviderID", "authProviderType", "gitlabProvider"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "external"
+        },
+        "authProviderID": {
+          "type": "string",
+          "description": "The value of the ` + "`" + `configID` + "`" + ` field of the targeted authentication provider."
+        },
+        "authProviderType": {
+          "type": "string",
+          "description": "The ` + "`" + `type` + "`" + ` field of the targeted authentication provider."
+        },
+        "gitlabProvider": {
+          "type": "string",
+          "description": "The provider name that identifies the authentication provider to GitLab. This is the name passed to the ` + "`" + `?provider=` + "`" + ` query parameter in calls to the GitLab Users API."
+        }
+      }
+    },
     "PhabricatorConnection": {
       "type": "object",
       "additionalProperties": false,
@@ -426,6 +471,25 @@ const SiteSchemaJSON = `{
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "identityProvider": {
+          "description": "The source of identity to use when computing permissions. This defines how to compute the GitLab identity to use for a given Sourcegraph user.",
+          "type": "object",
+          "required": ["type"],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["oauth", "username", "external"]
+            }
+          },
+          "oneOf": [
+            { "$ref": "#/definitions/OAuthIdentity" },
+            { "$ref": "#/definitions/UsernameIdentity" },
+            { "$ref": "#/definitions/ExternalIdentity" }
+          ],
+          "!go": {
+            "taggedUnionType": true
+          }
+        },
         "ttl": {
           "description":
             "The TTL of how long to cache permissions data. This is 3 hours by default.\n\nDecreasing the TTL will increase the load on the code host API. If you have X repos on your instance, it will take ~X/100 API requests to fetch the complete list for 1 user.  If you have Y users, you will incur X*Y/100 API requests per cache refresh period.\n\nIf set to zero, Sourcegraph will sync a user's entire accessible repository list on every request (NOT recommended).",

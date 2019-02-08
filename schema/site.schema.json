@@ -244,6 +244,51 @@
     }
   },
   "definitions": {
+    "OAuthIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "oauth"
+        }
+      }
+    },
+    "UsernameIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "username"
+        }
+      }
+    },
+    "ExternalIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "authProviderID", "authProviderType", "gitlabProvider"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "external"
+        },
+        "authProviderID": {
+          "type": "string",
+          "description": "The value of the `configID` field of the targeted authentication provider."
+        },
+        "authProviderType": {
+          "type": "string",
+          "description": "The `type` field of the targeted authentication provider."
+        },
+        "gitlabProvider": {
+          "type": "string",
+          "description": "The provider name that identifies the authentication provider to GitLab. This is the name passed to the `?provider=` query parameter in calls to the GitLab Users API."
+        }
+      }
+    },
     "PhabricatorConnection": {
       "type": "object",
       "additionalProperties": false,
@@ -421,25 +466,23 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "authnProvider": {
+        "identityProvider": {
+          "description": "The source of identity to use when computing permissions. This defines how to compute the GitLab identity to use for a given Sourcegraph user.",
           "type": "object",
-          "additionalProperties": false,
-          "required": ["configID", "type", "gitlabProvider"],
-          "description": "If specified, identifies the authentication provider to use to identify users to GitLab. Leave empty to use GitLab OAuth.",
+          "required": ["type"],
           "properties": {
-            "configID": {
-              "type": "string",
-              "description": "The value of the `configID` field of the targeted authentication provider."
-            },
             "type": {
               "type": "string",
-              "description": "The `type` field of the targeted authentication provider."
-            },
-            "gitlabProvider": {
-              "type": "string",
-              "description":
-                "The provider name that identifies the authentication provider to GitLab. This is the name passed to the `?provider=` query parameter in calls to the GitLab Users API."
+              "enum": ["oauth", "username", "external"]
             }
+          },
+          "oneOf": [
+            { "$ref": "#/definitions/OAuthIdentity" },
+            { "$ref": "#/definitions/UsernameIdentity" },
+            { "$ref": "#/definitions/ExternalIdentity" }
+          ],
+          "!go": {
+            "taggedUnionType": true
           }
         },
         "ttl": {
