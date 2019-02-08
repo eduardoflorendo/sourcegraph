@@ -40,7 +40,13 @@ type ClientProvider struct {
 }
 
 type CommonOp struct {
+	// NoCache, if true, will bypass any caching done in this package
 	NoCache bool
+
+	// Sudo, if set, will set the `sudo` URL param when querying the API endpoint (letting us
+	// impersonate a given user). This *must* be used in conjunction with a sudo-level access token
+	// in the client; otherwise, we do not have the privileges to impersonate.
+	Sudo string
 }
 
 func NewClientProvider(baseURL *url.URL, transport http.RoundTripper) *ClientProvider {
@@ -138,7 +144,7 @@ func isGitLabDotComURL(baseURL *url.URL) bool {
 	return hostname == "gitlab.com" || hostname == "www.gitlab.com"
 }
 
-func (c *Client) do(ctx context.Context, req *http.Request, result interface{}) (responseHeader http.Header, err error) {
+func (c *Client) do(ctx context.Context, req *http.Request, result interface{}, sudo string) (responseHeader http.Header, err error) {
 	req.URL = c.baseURL.ResolveReference(req.URL)
 	req.Header.Set("Content-Type", "application/json; charset=utf-8")
 	if c.personalAccessToken != "" {
@@ -146,6 +152,9 @@ func (c *Client) do(ctx context.Context, req *http.Request, result interface{}) 
 	}
 	if c.OAuthToken != "" {
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.OAuthToken))
+	}
+	if sudo != "" {
+		req.Header.Set("Sudo", sudo)
 	}
 
 	var resp *http.Response

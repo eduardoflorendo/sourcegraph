@@ -187,7 +187,7 @@ func (p *GitLabOAuthAuthzProvider) RepoPerms(ctx context.Context, account *extsv
 	return perms, nil
 }
 
-// fetchRepoVisibility fetches a repository's visibility with usr's credentials. It returns:
+// fetchProjVis fetches a repository's visibility with usr's credentials. It returns:
 // - whether the project is accessible to the user,
 // - the visibility if the repo is accessible (otherwise this is empty),
 // - whether the repository contents are accessible to usr, and
