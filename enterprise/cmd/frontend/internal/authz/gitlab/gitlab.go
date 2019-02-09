@@ -43,7 +43,7 @@ type GitLabOAuthAuthzProviderOp struct {
 	MockCache cache
 }
 
-func NewProvider(op GitLabOAuthAuthzProviderOp) *GitLabOAuthAuthzProvider {
+func NewOAuthProvider(op GitLabOAuthAuthzProviderOp) *GitLabOAuthAuthzProvider {
 	p := &GitLabOAuthAuthzProvider{
 		clientProvider: gitlab.NewClientProvider(op.BaseURL, nil),
 		clientURL:      op.BaseURL,

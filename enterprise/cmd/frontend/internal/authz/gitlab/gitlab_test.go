@@ -177,7 +177,7 @@ func Test_GitLab_RepoPerms_cache(t *testing.T) {
 	gitlab.MockListTree = gitlabMock.ListTree
 
 	ctx := context.Background()
-	authzProvider := NewProvider(GitLabOAuthAuthzProviderOp{
+	authzProvider := NewOAuthProvider(GitLabOAuthAuthzProviderOp{
 		BaseURL:   mustURL(t, "https://gitlab.mine"),
 		MockCache: make(mockCache),
 		CacheTTL:  3 * time.Hour,
@@ -291,7 +291,7 @@ func (g GitLab_RepoPerms_Test) run(t *testing.T) {
 		ctx := context.Background()
 		op := g.op
 		op.MockCache = make(mockCache)
-		authzProvider := NewProvider(op)
+		authzProvider := NewOAuthProvider(op)
 
 		for i := 0; i < 2; i++ {
 			t.Logf("iter %d", i)
@@ -361,7 +361,7 @@ func (g GitLab_Repos_Test) run(t *testing.T) {
 		ctx := context.Background()
 		op := g.op
 		op.MockCache = make(mockCache)
-		authzProvider := NewProvider(op)
+		authzProvider := NewOAuthProvider(op)
 
 		mine, others := authzProvider.Repos(ctx, c.repos)
 		if !reflect.DeepEqual(mine, c.expMine) {

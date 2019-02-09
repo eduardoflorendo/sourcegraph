@@ -184,8 +184,8 @@ type GitLabAuthProvider struct {
 
 // GitLabAuthorization description: If non-null, enforces GitLab repository permissions. This requires that there be an item in the `auth.providers` field of type "gitlab" with the same `url` field as specified in this `GitLabConnection`.
 type GitLabAuthorization struct {
-	IdentityProvider *IdentityProvider `json:"identityProvider,omitempty"`
-	Ttl              string            `json:"ttl,omitempty"`
+	IdentityProvider IdentityProvider `json:"identityProvider"`
+	Ttl              string           `json:"ttl,omitempty"`
 }
 type GitLabConnection struct {
 	Authorization               *GitLabAuthorization `json:"authorization,omitempty"`

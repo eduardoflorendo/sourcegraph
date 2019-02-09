@@ -470,6 +470,7 @@ const SiteSchemaJSON = `{
         "If non-null, enforces GitLab repository permissions. This requires that there be an item in the ` + "`" + `auth.providers` + "`" + ` field of type \"gitlab\" with the same ` + "`" + `url` + "`" + ` field as specified in this ` + "`" + `GitLabConnection` + "`" + `.",
       "type": "object",
       "additionalProperties": false,
+      "required": ["identityProvider"],
       "properties": {
         "identityProvider": {
           "description": "The source of identity to use when computing permissions. This defines how to compute the GitLab identity to use for a given Sourcegraph user.",
