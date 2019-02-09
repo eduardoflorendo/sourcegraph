@@ -303,6 +303,7 @@ github.com/kevinburke/differ v0.0.0-20181006040839-bdfd927653c8 h1:XCAOLCXtvhcmu
 github.com/kevinburke/differ v0.0.0-20181006040839-bdfd927653c8/go.mod h1:I7eBHoOOU9N76qKli6iiqWZqh7iyxraK7SgR+kbDgW4=
 github.com/kevinburke/go-bindata v3.12.0+incompatible h1:D7FWZ35UwzkoC+MEcR8Kgo9Dh/7lmHQUT4VDtAuNGaU=
 github.com/kevinburke/go-bindata v3.12.0+incompatible/go.mod h1:/pEEZ72flUW2p0yi30bslSp9YqD9pysLxunQDdb2CPM=
+github.com/kevinburke/go-bindata v3.13.0+incompatible/go.mod h1:/pEEZ72flUW2p0yi30bslSp9YqD9pysLxunQDdb2CPM=
 github.com/kevinburke/ssh_config v0.0.0-20180830205328-81db2a75821e/go.mod h1:CT57kijsi8u/K/BOFA39wgDQJ9CxiF4nAY/ojJ6r6mM=
 github.com/kisielk/gotool v1.0.0 h1:AV2c/EiW3KqPNT9ZKl07ehoAGi4C5/01Cfbblndcapg=
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
